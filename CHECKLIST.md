@@ -10,14 +10,14 @@ Checklist para controlar lo implementado y lo pendiente en el sistema.
 ## Carga de modelos (WebLLM)
 - [x] Flujo de carga con estados claros (inicializando, descargando, listo).
 - [x] Manejo de errores de red/CSP con mensaje útil.
-- [ ] Persistencia de modelo seleccionado en `localStorage`.
-- [ ] Opción de usar modelos locales en `public/models/`.
+- [x] Persistencia de modelo seleccionado en `localStorage`.
+- [x] Opción de usar modelos locales en `public/models/`.
 
 ## Experiencia de interrogatorio
-- [ ] Explicación visible de niveles L0–L3.
-- [ ] Resumen de pistas activas por chat.
-- [ ] Reset de chats funcional y testeado.
-- [ ] Límite/contador de turnos por sesión.
+- [x] Explicación visible de niveles L0–L3.
+- [x] Resumen de pistas activas por chat.
+- [x] Reset de chats funcional y testeado.
+- [x] Límite/contador de turnos por sesión.
 
 ## Prompts y contenido
 - [x] Plantillas de prompt separadas por sospechoso.
