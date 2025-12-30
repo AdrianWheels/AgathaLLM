@@ -3,13 +3,13 @@
 Checklist para controlar lo implementado y lo pendiente en el sistema.
 
 ## Base técnica
-- [ ] Dependencias instaladas y reproducibles (`npm i`).
-- [ ] Script de tests configurado y ejecutable (`vitest run`).
-- [ ] Requisitos mínimos documentados (Node, navegador, WebGPU/WASM).
+- [x] Dependencias instaladas y reproducibles (`npm i`).
+- [x] Script de tests configurado y ejecutable (`vitest run`).
+- [x] Requisitos mínimos documentados (Node, navegador, WebGPU/WASM).
 
 ## Carga de modelos (WebLLM)
-- [ ] Flujo de carga con estados claros (inicializando, descargando, listo).
-- [ ] Manejo de errores de red/CSP con mensaje útil.
+- [x] Flujo de carga con estados claros (inicializando, descargando, listo).
+- [x] Manejo de errores de red/CSP con mensaje útil.
 - [ ] Persistencia de modelo seleccionado en `localStorage`.
 - [ ] Opción de usar modelos locales en `public/models/`.
 
@@ -20,9 +20,9 @@ Checklist para controlar lo implementado y lo pendiente en el sistema.
 - [ ] Límite/contador de turnos por sesión.
 
 ## Prompts y contenido
-- [ ] Plantillas de prompt separadas por sospechoso.
-- [ ] Validaciones para evitar revelaciones fuera del nivel.
-- [ ] Ejemplos de respuestas esperadas por nivel.
+- [x] Plantillas de prompt separadas por sospechoso.
+- [x] Validaciones para evitar revelaciones fuera del nivel.
+- [x] Ejemplos de respuestas esperadas por nivel.
 
 ## Observabilidad ligera
 - [ ] Medición de latencia por turno.
@@ -31,7 +31,7 @@ Checklist para controlar lo implementado y lo pendiente en el sistema.
 
 ## Tests y calidad
 - [ ] Tests UI para carga del modelo y errores simulados.
-- [ ] Tests de interacción de pistas y envío de mensajes.
+- [x] Tests de interacción de pistas y envío de mensajes.
 - [ ] CI ejecuta `npm run test`.
 
 ## Performance
