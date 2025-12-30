@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CreateMLCEngine } from '@mlc-ai/web-llm'
 
 const LEVELS = ['L0','L1','L2','L3']
@@ -192,8 +192,75 @@ export default function App(){
   const [modelName, setModelName] = useState('Llama-3.2-1B-Instruct-q4f16_1-MLC')
   const [localModelPath, setLocalModelPath] = useState('./models/mi-modelo')
   const [turnCounts, setTurnCounts] = useState({ A:0, B:0, C:0 })
+  const [audioEnabled, setAudioEnabled] = useState(false)
+  const audioContextRef = useRef(null)
+  const jazzIntervalRef = useRef(null)
 
   const supportsWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
+
+  function ensureAudioContext(){
+    if(typeof window === 'undefined') return null
+    if(!audioContextRef.current){
+      const Context = window.AudioContext || window.webkitAudioContext
+      if(!Context) return null
+      audioContextRef.current = new Context()
+    }
+    return audioContextRef.current
+  }
+
+  function playClick(){
+    if(!audioEnabled) return
+    const ctx = ensureAudioContext()
+    if(!ctx) return
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'square'
+    osc.frequency.value = 1200
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08)
+    osc.connect(gain).connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.09)
+  }
+
+  function startJazzLoop(){
+    const ctx = ensureAudioContext()
+    if(!ctx) return
+    const chords = [
+      [220, 277.18, 329.63],
+      [196, 246.94, 293.66],
+      [233.08, 293.66, 349.23],
+      [174.61, 220, 261.63]
+    ]
+    let step = 0
+    const playChord = () => {
+      const now = ctx.currentTime
+      const freqs = chords[step % chords.length]
+      freqs.forEach(freq => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0.0001, now)
+        gain.gain.exponentialRampToValueAtTime(0.035, now + 0.04)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 1.7)
+      })
+      step += 1
+    }
+    playChord()
+    jazzIntervalRef.current = setInterval(playChord, 2000)
+  }
+
+  function stopJazzLoop(){
+    if(jazzIntervalRef.current){
+      clearInterval(jazzIntervalRef.current)
+      jazzIntervalRef.current = null
+    }
+  }
 
   useEffect(() => {
     const savedModel = localStorage.getItem(MODEL_STORAGE_KEY)
@@ -201,6 +268,15 @@ export default function App(){
     const savedPath = localStorage.getItem(LOCAL_MODEL_STORAGE_KEY)
     if(savedPath) setLocalModelPath(savedPath)
   }, [])
+
+  useEffect(() => {
+    if(audioEnabled){
+      startJazzLoop()
+    }else{
+      stopJazzLoop()
+    }
+    return () => stopJazzLoop()
+  }, [audioEnabled])
 
   useEffect(() => {
     localStorage.setItem(MODEL_STORAGE_KEY, modelName)
@@ -211,7 +287,16 @@ export default function App(){
   }, [localModelPath])
 
   function toggleClue(id){
-    setActiveClues(prev => { const next = new Set(prev); if(next.has(id)) next.delete(id); else next.add(id); return next })
+    setActiveClues(prev => {
+      const next = new Set(prev)
+      if(next.has(id)){
+        next.delete(id)
+      }else{
+        next.add(id)
+        playClick()
+      }
+      return next
+    })
   }
   function pushMessage(id, msg){
     setAllMessages(prev => ({ ...prev, [id]: [...prev[id], msg] }))
@@ -276,9 +361,11 @@ export default function App(){
     })
   }, [activeClues])
 
+  const cameraOffActive = activeClues.has('P7')
+
   return (
-    <div className="wrap">
-      <h1>Prototipo: 3 Sospechosos + 4 Pistas <span className="muted">(React + Vite + WebLLM)</span></h1>
+    <div className={`wrap ${cameraOffActive ? 'cam-off' : ''}`}>
+      <h1>Archivo Bélico: 3 Sospechosos + 4 Pistas <span className="muted">(React + Vite + WebLLM)</span><span className="cursor" aria-hidden="true">█</span></h1>
       <p className="muted small">Pulsa pistas para “presionar”. Carga un modelo pequeño en el navegador. Si no, se usa fallback enlatado.</p>
 
       <div className="card" style={{marginBottom:12}}>
@@ -291,7 +378,7 @@ export default function App(){
         </div>
       </div>
 
-      <div className="card row" style={{justifyContent:'space-between'}}>
+      <div className="card row metal" style={{justifyContent:'space-between'}}>
         <div className="row">
           <span className="small">Modelo:</span>
           <select value={modelName} onChange={(e)=>setModelName(e.target.value)}>
@@ -316,7 +403,7 @@ export default function App(){
         </div>
       </div>
 
-      <div className="card row" id="cluesBar">
+      <div className="card row dossier" id="cluesBar">
         {CLUES.map(c => {
           const active = activeClues.has(c.id)
           return <button key={c.id} title={c.desc} onClick={()=>toggleClue(c.id)} className={active?'active':''}>{active?'✓ ':''}{c.label}</button>
@@ -330,6 +417,9 @@ export default function App(){
       <div className="row" style={{marginTop:8}}>
         <input placeholder="Pregunta global para los tres sospechosos…" value={broadcast} onChange={e=>setBroadcast(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendBroadcast()} style={{flex:1}} />
         <button onClick={sendBroadcast}>Enviar a todos</button>
+        <button className={`audio-toggle ${audioEnabled ? 'on' : 'off'}`} onClick={()=>setAudioEnabled(prev => !prev)}>
+          Audio {audioEnabled ? 'ON' : 'OFF'}
+        </button>
       </div>
 
       <div className="grid grid-3" style={{marginTop:12}}>
