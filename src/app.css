@@ -10,6 +10,7 @@ button{border:1px solid var(--b);background:rgba(255,255,255,.06);color:#fff;bor
 button:hover{background:rgba(255,255,255,.12)}button.active{background:#fff;color:#000;border-color:#fff}
 select,input{background:rgba(0,0,0,.3);color:#fff;border:1px solid var(--b);border-radius:10px;padding:8px}
 input::placeholder{color:#c7cbd6}
+.local-model-input{min-width:220px}
 .grid{display:grid;gap:12px}
 @media (min-width:900px){.grid-3{grid-template-columns:repeat(3,1fr)}}
 .chat{display:flex;flex-direction:column;min-height:320px}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { CreateMLCEngine } from '@mlc-ai/web-llm'
 
 const LEVELS = ['L0','L1','L2','L3']
@@ -42,6 +42,10 @@ const CANNED = {
       L3:[ 'Apagué la cámara y destruí papeles, sí. No toqué a mi padre. Puedo explicarlo punto por punto.' ]
   },
 }
+
+const TURN_LIMIT = 6
+const MODEL_STORAGE_KEY = 'agatha:selectedModel'
+const LOCAL_MODEL_STORAGE_KEY = 'agatha:localModelPath'
 
 function computeScoreForSuspect(active, suspect){
   let score = 0
@@ -92,17 +96,26 @@ async function callLLM(engine, systemPrompt, history, question, opts){
 function Badge({ text }){ return <span className="pill">{text}</span> }
 function ProgressBar({ value=0 }){ return <div className="bar"><i style={{width: `${Math.min(100, Math.max(0, value))}%`}} /></div> }
 
-function ChatBox({ suspect, activeClues, pushMessage, messages, engine }){
+function ChatBox({ suspect, activeClues, pushMessage, messages, engine, turnCount, onUserTurn }){
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [limitHit, setLimitHit] = useState(false)
   const score = useMemo(() => computeScoreForSuspect(activeClues, suspect), [activeClues, suspect])
   const level = useMemo(() => scoreToLevel(score), [score])
   const mood = useMemo(() => pickMood(SUSPECTS[suspect].baselineMood, score, suspect), [score, suspect])
+  const activeClueLabels = useMemo(() => {
+    return CLUES.filter(c => activeClues.has(c.id)).map(c => c.label)
+  }, [activeClues])
 
   async function send(){
     const q = input.trim(); if(!q || busy) return
+    if(turnCount >= TURN_LIMIT){
+      setLimitHit(true)
+      return
+    }
     setBusy(true)
     pushMessage(suspect, { role:'user', text:q, at:Date.now() })
+    onUserTurn(suspect)
 
     const last = messages.slice(-4).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }))
     const system = buildSystemPrompt(suspect, level, activeClues)
@@ -118,8 +131,11 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine }){
       text = base + echo
     }
     pushMessage(suspect, { role:'suspect', text, mood, truthLevel: level, at: Date.now() })
-    setInput(''); setBusy(false)
+    setInput(''); setBusy(false); setLimitHit(false)
   }
+
+  const turnLabel = `${turnCount}/${TURN_LIMIT}`
+  const turnLimitReached = turnCount >= TURN_LIMIT
 
   return (
     <div className="card chat">
@@ -132,6 +148,15 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine }){
       </div>
       <div className="row small muted" style={{alignItems:'center', margin:'4px 0'}}>
         <span>Presión</span><ProgressBar value={Math.min(100, score*33)} />
+        <span style={{marginLeft:'auto'}}>Turnos {turnLabel}</span>
+      </div>
+      <div className="row small muted" style={{marginBottom:6}}>
+        <span>Pistas activas:</span>
+        {activeClueLabels.length ? (
+          activeClueLabels.map(label => <Badge key={label} text={label} />)
+        ) : (
+          <span>(ninguna)</span>
+        )}
       </div>
       <div className="msglist">
         {messages.length === 0 && <div className="small muted" style={{fontStyle:'italic'}}>Sin mensajes. Pregunta algo comprometido…</div>}
@@ -143,9 +168,15 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine }){
         ))}
       </div>
       <div className="foot">
-        <input placeholder="Escribe tu pregunta…" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} disabled={busy} />
-        <button onClick={send} disabled={busy}>{busy?'Pensando…':'Enviar'}</button>
+        <input placeholder="Escribe tu pregunta…" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} disabled={busy || turnLimitReached} />
+        <button onClick={send} disabled={busy || turnLimitReached}>{busy?'Pensando…':'Enviar'}</button>
       </div>
+      {turnLimitReached && (
+        <div className="small muted" style={{marginTop:6}}>Límite de turnos alcanzado. Usa “Reset chats” para reiniciar.</div>
+      )}
+      {limitHit && !turnLimitReached && (
+        <div className="small muted" style={{marginTop:6}}>Has alcanzado el límite de turnos para este sospechoso.</div>
+      )}
     </div>
   )
 }
@@ -159,8 +190,25 @@ export default function App(){
   const [progress, setProgress] = useState(0)
   const [ready, setReady] = useState(false)
   const [modelName, setModelName] = useState('Llama-3.2-1B-Instruct-q4f16_1-MLC')
+  const [localModelPath, setLocalModelPath] = useState('./models/mi-modelo')
+  const [turnCounts, setTurnCounts] = useState({ A:0, B:0, C:0 })
 
   const supportsWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
+
+  useEffect(() => {
+    const savedModel = localStorage.getItem(MODEL_STORAGE_KEY)
+    if(savedModel) setModelName(savedModel)
+    const savedPath = localStorage.getItem(LOCAL_MODEL_STORAGE_KEY)
+    if(savedPath) setLocalModelPath(savedPath)
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(MODEL_STORAGE_KEY, modelName)
+  }, [modelName])
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_MODEL_STORAGE_KEY, localModelPath)
+  }, [localModelPath])
 
   function toggleClue(id){
     setActiveClues(prev => { const next = new Set(prev); if(next.has(id)) next.delete(id); else next.add(id); return next })
@@ -168,12 +216,20 @@ export default function App(){
   function pushMessage(id, msg){
     setAllMessages(prev => ({ ...prev, [id]: [...prev[id], msg] }))
   }
-  function resetChats(){ setAllMessages({ A:[], B:[], C:[] }) }
+  function trackUserTurn(id){
+    setTurnCounts(prev => ({ ...prev, [id]: prev[id] + 1 }))
+  }
+  function resetChats(){
+    setAllMessages({ A:[], B:[], C:[] })
+    setTurnCounts({ A:0, B:0, C:0 })
+  }
 
   async function loadModel(name){
+    const modelToLoad = name === 'local' ? localModelPath.trim() : name
+    if(!modelToLoad) return
     setStatus(supportsWebGPU ? 'descargando modelo…' : 'WASM lento, sin WebGPU')
     try{
-      const e = await CreateMLCEngine(name, {
+      const e = await CreateMLCEngine(modelToLoad, {
         initProgressCallback: (p) => {
           setStatus(p?.text || 'cargando…')
           setProgress(p?.progress ? Math.max(0, Math.min(1, p.progress)) : 0)
@@ -187,10 +243,12 @@ export default function App(){
 
   async function sendBroadcast(){
     const q = broadcast.trim(); if(!q) return
-    for(const sid of Object.keys(SUSPECTS)){
+    const eligible = Object.keys(SUSPECTS).filter(sid => turnCounts[sid] < TURN_LIMIT)
+    for(const sid of eligible){
       pushMessage(sid, { role:'user', text:q, at: Date.now() })
+      trackUserTurn(sid)
     }
-    await Promise.all(Object.keys(SUSPECTS).map(async sid => {
+    await Promise.all(eligible.map(async sid => {
       const score = computeScoreForSuspect(activeClues, sid)
       const lvl = scoreToLevel(score)
       const mood = pickMood(SUSPECTS[sid].baselineMood, score, sid)
@@ -223,13 +281,32 @@ export default function App(){
       <h1>Prototipo: 3 Sospechosos + 4 Pistas <span className="muted">(React + Vite + WebLLM)</span></h1>
       <p className="muted small">Pulsa pistas para “presionar”. Carga un modelo pequeño en el navegador. Si no, se usa fallback enlatado.</p>
 
+      <div className="card" style={{marginBottom:12}}>
+        <div style={{fontWeight:600, marginBottom:6}}>Cómo funcionan los niveles L0–L3</div>
+        <div className="grid" style={{gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:8}}>
+          <div className="small muted"><strong>L0</strong>: evasivo, niega y desvía. Sin admitir hechos comprometedores.</div>
+          <div className="small muted"><strong>L1</strong>: admite hechos probados, pero oculta el núcleo.</div>
+          <div className="small muted"><strong>L2</strong>: reconoce acciones comprometedoras sin confesar homicidio.</div>
+          <div className="small muted"><strong>L3</strong>: revela el núcleo de verdad ligado a las pruebas.</div>
+        </div>
+      </div>
+
       <div className="card row" style={{justifyContent:'space-between'}}>
         <div className="row">
           <span className="small">Modelo:</span>
           <select value={modelName} onChange={(e)=>setModelName(e.target.value)}>
             <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B Instruct (q4) — recomendado</option>
             <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k Instruct (q4)</option>
+            <option value="local">Modelo local (public/models)</option>
           </select>
+          {modelName === 'local' && (
+            <input
+              className="local-model-input"
+              placeholder="./models/tu-modelo"
+              value={localModelPath}
+              onChange={(e)=>setLocalModelPath(e.target.value)}
+            />
+          )}
           <button onClick={()=>loadModel(modelName)} disabled={ready}>{ready?'Cargado':'Cargar modelo'}</button>
           {!supportsWebGPU && <span className="tag">Sin WebGPU: irá lento (WASM)</span>}
         </div>
@@ -266,7 +343,16 @@ export default function App(){
 
       <div className="grid grid-3" style={{marginTop:12}}>
         {Object.keys(SUSPECTS).map(sid => (
-          <ChatBox key={sid} suspect={sid} activeClues={activeClues} pushMessage={pushMessage} messages={allMessages[sid]} engine={engine} />
+          <ChatBox
+            key={sid}
+            suspect={sid}
+            activeClues={activeClues}
+            pushMessage={pushMessage}
+            messages={allMessages[sid]}
+            engine={engine}
+            turnCount={turnCounts[sid]}
+            onUserTurn={trackUserTurn}
+          />
         ))}
       </div>
     </div>
