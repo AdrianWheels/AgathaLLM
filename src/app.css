@@ -127,9 +127,11 @@ input::placeholder{color:#b8bfca}
   width:30px;
   height:30px;
   border-radius:9px;
-  background:linear-gradient(135deg,var(--c1),var(--c2));
+  background:#0b1118;
   border:1px solid rgba(255,255,255,.2);
   box-shadow:0 10px 20px rgba(0,0,0,.25);
+  display:block;
+  object-fit:cover;
 }
 .avatar.large{
   width:40px;
