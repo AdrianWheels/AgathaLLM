@@ -4,11 +4,11 @@ import { CreateMLCEngine } from '@mlc-ai/web-llm'
 const LEVELS = ['L0','L1','L2','L3']
 
 const SUSPECTS = {
-  A: { id:'A', name:'Lucía Varela', baselineMood:'Pensativo', c1:'#22d3ee', c2:'#3b82f6',
+  A: { id:'A', name:'Lucía Varela', role:'Fotógrafa', vibe:'Observadora', baselineMood:'Pensativo', c1:'#22d3ee', c2:'#3b82f6',
     persona: `Eres Lucía Varela, fotógrafa de 28 años. Tono contenido e irónico. Guardas el secreto de haber forzado la cerradura del despacho a las 21:40 para buscar un borrador del testamento. Jamás reveles el secreto salvo en L3.` },
-  B: { id:'B', name:'Bruno Cebrián', baselineMood:'Evitativo', c1:'#f59e0b', c2:'#ea580c',
+  B: { id:'B', name:'Bruno Cebrián', role:'Empresario', vibe:'Impetuoso', baselineMood:'Evitativo', c1:'#f59e0b', c2:'#ea580c',
     persona: `Eres Bruno Cebrián, 42, empresario con deudas. Mientes por defecto, reaccionas mal a la presión. Eres el asesino: entraste con llave maestra a las 21:46 y golpeaste a Ernesto con una escultura. No confieses salvo en L3.` },
-  C: { id:'C', name:'Marta Saldaña', baselineMood:'Cabreado', c1:'#d946ef', c2:'#db2777',
+  C: { id:'C', name:'Marta Saldaña', role:'Administradora', vibe:'Controlada', baselineMood:'Cabreado', c1:'#d946ef', c2:'#db2777',
     persona: `Eres Marta Saldaña, 35, administras la fundación. Apagaste la cámara del pasillo 21:30–22:10 y quemaste notas comprometedoras. No mataste a tu padre. Defiendes tu reputación con dureza. Secreto solo en L2+.` },
 }
 
@@ -143,6 +143,7 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine, turnCoun
         <div className="avatar" style={{'--c1': SUSPECTS[suspect].c1, '--c2': SUSPECTS[suspect].c2}} />
         <div style={{flex:1}}>
           <div style={{fontWeight:600,color:'#f3f6ff'}}>{SUSPECTS[suspect].name}</div>
+          <div className="micro muted">{SUSPECTS[suspect].role} · {SUSPECTS[suspect].vibe}</div>
           <div className="row small muted"><Badge text={`Nivel ${level}`} /> <span>{moodEmoji(mood)} {mood}</span></div>
         </div>
       </div>
@@ -151,11 +152,11 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine, turnCoun
         <span style={{marginLeft:'auto'}}>Turnos {turnLabel}</span>
       </div>
       <div className="row small muted" style={{marginBottom:6}}>
-        <span>Pistas activas:</span>
+        <span>Pistas</span>
         {activeClueLabels.length ? (
           activeClueLabels.map(label => <Badge key={label} text={label} />)
         ) : (
-          <span>(ninguna)</span>
+          <span>Sin pistas</span>
         )}
       </div>
       <div className="msglist">
@@ -172,10 +173,10 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine, turnCoun
         <button onClick={send} disabled={busy || turnLimitReached}>{busy?'Pensando…':'Enviar'}</button>
       </div>
       {turnLimitReached && (
-        <div className="small muted" style={{marginTop:6}}>Límite de turnos alcanzado. Usa “Reset chats” para reiniciar.</div>
+        <div className="small muted" style={{marginTop:6}}>Turnos agotados. Reinicia para seguir.</div>
       )}
       {limitHit && !turnLimitReached && (
-        <div className="small muted" style={{marginTop:6}}>Has alcanzado el límite de turnos para este sospechoso.</div>
+        <div className="small muted" style={{marginTop:6}}>Turno agotado para este sospechoso.</div>
       )}
     </div>
   )
@@ -365,22 +366,17 @@ export default function App(){
 
   return (
     <div className={`wrap ${cameraOffActive ? 'cam-off' : ''}`}>
-      <h1>Archivo Bélico: 3 Sospechosos + 4 Pistas <span className="muted">(React + Vite + WebLLM)</span><span className="cursor" aria-hidden="true">█</span></h1>
-      <p className="muted small">Pulsa pistas para “presionar”. Carga un modelo pequeño en el navegador. Si no, se usa fallback enlatado.</p>
-
-      <div className="card" style={{marginBottom:12}}>
-        <div style={{fontWeight:600, marginBottom:6}}>Cómo funcionan los niveles L0–L3</div>
-        <div className="grid" style={{gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:8}}>
-          <div className="small muted"><strong>L0</strong>: evasivo, niega y desvía. Sin admitir hechos comprometedores.</div>
-          <div className="small muted"><strong>L1</strong>: admite hechos probados, pero oculta el núcleo.</div>
-          <div className="small muted"><strong>L2</strong>: reconoce acciones comprometedoras sin confesar homicidio.</div>
-          <div className="small muted"><strong>L3</strong>: revela el núcleo de verdad ligado a las pruebas.</div>
+      <div className="hero">
+        <div>
+          <h1>Archivo Bélico<span className="cursor" aria-hidden="true">█</span></h1>
+          <p className="hero-sub">Interroga a los tres sospechosos y deja que las pistas tensen la noche.</p>
+          <div className="legend small muted">L0 evasivo · L1 admite · L2 reconoce · L3 revela</div>
         </div>
       </div>
 
-      <div className="card row metal" style={{justifyContent:'space-between'}}>
+      <div className="card row panel" style={{justifyContent:'space-between'}}>
         <div className="row">
-          <span className="small">Modelo:</span>
+          <span className="small muted">Modelo</span>
           <select value={modelName} onChange={(e)=>setModelName(e.target.value)}>
             <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B Instruct (q4) — recomendado</option>
             <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k Instruct (q4)</option>
@@ -394,7 +390,7 @@ export default function App(){
               onChange={(e)=>setLocalModelPath(e.target.value)}
             />
           )}
-          <button onClick={()=>loadModel(modelName)} disabled={ready}>{ready?'Cargado':'Cargar modelo'}</button>
+          <button onClick={()=>loadModel(modelName)} disabled={ready}>{ready?'Cargado':'Cargar'}</button>
           {!supportsWebGPU && <span className="tag">Sin WebGPU: irá lento (WASM)</span>}
         </div>
         <div className="status">
@@ -414,9 +410,9 @@ export default function App(){
         </div>
       </div>
 
-      <div className="row" style={{marginTop:8}}>
-        <input placeholder="Pregunta global para los tres sospechosos…" value={broadcast} onChange={e=>setBroadcast(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendBroadcast()} style={{flex:1}} />
-        <button onClick={sendBroadcast}>Enviar a todos</button>
+      <div className="row broadcast" style={{marginTop:8}}>
+        <input placeholder="Pregunta global…" value={broadcast} onChange={e=>setBroadcast(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendBroadcast()} style={{flex:1}} />
+        <button onClick={sendBroadcast}>Enviar</button>
         <button className={`audio-toggle ${audioEnabled ? 'on' : 'off'}`} onClick={()=>setAudioEnabled(prev => !prev)}>
           Audio {audioEnabled ? 'ON' : 'OFF'}
         </button>
@@ -424,9 +420,18 @@ export default function App(){
 
       <div className="grid grid-3" style={{marginTop:12}}>
         {statusList.map(s => (
-          <div key={s.id} className="card">
-            <div className="small muted">{SUSPECTS[s.id].name}</div>
-            <div className="row small" style={{marginTop:4}}><span className="pill">{`Nivel ${s.level}`}</span><span className="pill">{`score ${s.score}`}</span></div>
+          <div key={s.id} className="card profile">
+            <div className="row" style={{gap:10}}>
+              <div className="avatar large" style={{'--c1': SUSPECTS[s.id].c1, '--c2': SUSPECTS[s.id].c2}} />
+              <div>
+                <div className="small muted">{SUSPECTS[s.id].role}</div>
+                <div style={{fontWeight:600}}>{SUSPECTS[s.id].name}</div>
+                <div className="micro muted">{SUSPECTS[s.id].vibe}</div>
+              </div>
+            </div>
+            <div className="row small" style={{marginTop:10}}>
+              <span className="pill">{`Nivel ${s.level}`}</span>
+            </div>
           </div>
         ))}
       </div>
