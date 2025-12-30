@@ -3,12 +3,14 @@ import { CreateMLCEngine } from '@mlc-ai/web-llm'
 
 const LEVELS = ['L0','L1','L2','L3']
 
+const PLACEHOLDER_IMAGE = 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'
+
 const SUSPECTS = {
-  A: { id:'A', name:'Lucía Varela', role:'Fotógrafa', vibe:'Observadora', baselineMood:'Pensativo', c1:'#22d3ee', c2:'#3b82f6',
+  A: { id:'A', name:'Lucía Varela', role:'Fotógrafa', vibe:'Observadora', baselineMood:'Pensativo', c1:'#22d3ee', c2:'#3b82f6', image: PLACEHOLDER_IMAGE,
     persona: `Eres Lucía Varela, fotógrafa de 28 años. Tono contenido e irónico. Guardas el secreto de haber forzado la cerradura del despacho a las 21:40 para buscar un borrador del testamento. Jamás reveles el secreto salvo en L3.` },
-  B: { id:'B', name:'Bruno Cebrián', role:'Empresario', vibe:'Impetuoso', baselineMood:'Evitativo', c1:'#f59e0b', c2:'#ea580c',
+  B: { id:'B', name:'Bruno Cebrián', role:'Empresario', vibe:'Impetuoso', baselineMood:'Evitativo', c1:'#f59e0b', c2:'#ea580c', image: PLACEHOLDER_IMAGE,
     persona: `Eres Bruno Cebrián, 42, empresario con deudas. Mientes por defecto, reaccionas mal a la presión. Eres el asesino: entraste con llave maestra a las 21:46 y golpeaste a Ernesto con una escultura. No confieses salvo en L3.` },
-  C: { id:'C', name:'Marta Saldaña', role:'Administradora', vibe:'Controlada', baselineMood:'Cabreado', c1:'#d946ef', c2:'#db2777',
+  C: { id:'C', name:'Marta Saldaña', role:'Administradora', vibe:'Controlada', baselineMood:'Cabreado', c1:'#d946ef', c2:'#db2777', image: PLACEHOLDER_IMAGE,
     persona: `Eres Marta Saldaña, 35, administras la fundación. Apagaste la cámara del pasillo 21:30–22:10 y quemaste notas comprometedoras. No mataste a tu padre. Defiendes tu reputación con dureza. Secreto solo en L2+.` },
 }
 
@@ -140,7 +142,12 @@ function ChatBox({ suspect, activeClues, pushMessage, messages, engine, turnCoun
   return (
     <div className="card chat">
       <div className="chat-head">
-        <div className="avatar" style={{'--c1': SUSPECTS[suspect].c1, '--c2': SUSPECTS[suspect].c2}} />
+        <img
+          className="avatar"
+          src={SUSPECTS[suspect].image}
+          alt={`Retrato de ${SUSPECTS[suspect].name}`}
+          loading="lazy"
+        />
         <div style={{flex:1}}>
           <div style={{fontWeight:600,color:'#f3f6ff'}}>{SUSPECTS[suspect].name}</div>
           <div className="micro muted">{SUSPECTS[suspect].role} · {SUSPECTS[suspect].vibe}</div>
@@ -422,7 +429,12 @@ export default function App(){
         {statusList.map(s => (
           <div key={s.id} className="card profile">
             <div className="row" style={{gap:10}}>
-              <div className="avatar large" style={{'--c1': SUSPECTS[s.id].c1, '--c2': SUSPECTS[s.id].c2}} />
+              <img
+                className="avatar large"
+                src={SUSPECTS[s.id].image}
+                alt={`Retrato de ${SUSPECTS[s.id].name}`}
+                loading="lazy"
+              />
               <div>
                 <div className="small muted">{SUSPECTS[s.id].role}</div>
                 <div style={{fontWeight:600}}>{SUSPECTS[s.id].name}</div>
